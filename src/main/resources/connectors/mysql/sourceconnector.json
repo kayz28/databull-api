@@ -1,0 +1,19 @@
+{
+  "name": "inventory-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+    "tasks.max": "1",
+    "topic.prefix": "dbserver1",
+    "database.hostname": "localhost",
+    "database.port": "3306",
+    "database.user": "root",
+    "database.password": "Yoyokartik@28",
+    "database.server.id": "server1",
+    "database.include.list": "n_dream11",
+    "table.include.list" : "n_d11_player_infos",
+    "schema.history.internal.kafka.bootstrap.servers": "localhost:9092",
+    "schema.history.internal.kafka.topic": "schema-changes.n_dream11",
+    "database.history.kafka.bootstrap.servers": "localhost:9092",
+    "database.history.kafka.topic": "schema-changes.n_dream11",
+  }
+}
