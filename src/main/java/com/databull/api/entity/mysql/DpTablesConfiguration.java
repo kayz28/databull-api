@@ -45,7 +45,7 @@ public class DpTablesConfiguration {
     private String databaseName;
 
     @Column(name = "data_store_id")
-    private Integer dataStoreId;
+    private Long dataStoreId;
 
     @Column(name = "is_source_connector_created")
     private Boolean isSourceConnectorCreated;

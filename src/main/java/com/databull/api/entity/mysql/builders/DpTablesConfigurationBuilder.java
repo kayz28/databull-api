@@ -15,7 +15,7 @@ public final class DpTablesConfigurationBuilder {
     private Instant updatedAt;
     private Integer columnsWhitelisting;
     private String databaseName;
-    private Integer dataStoreId;
+    private Long dataStoreId;
     private Boolean isSourceConnectorCreated;
     private Boolean isSinkConnectorCreated;
     private Instant firstSyncTime;
@@ -77,7 +77,7 @@ public final class DpTablesConfigurationBuilder {
         return this;
     }
 
-    public DpTablesConfigurationBuilder withDataStoreId(Integer dataStoreId) {
+    public DpTablesConfigurationBuilder withDataStoreId(Long dataStoreId) {
         this.dataStoreId = dataStoreId;
         return this;
     }

@@ -3,7 +3,7 @@ package com.databull.api.service;
 import com.databull.api.clients.DataStoreClient;
 import com.databull.api.clients.MysqlClient;
 import com.databull.api.clients.PostgresClient;
-import com.databull.api.config.RMQRefinedConfig;
+//import com.databull.api.config.RMQRefinedConfig;
 import com.databull.api.dto.ColumnDetails;
 import com.databull.api.dto.DataStoreConfig;
 import com.databull.api.dto.TableDetails;
@@ -33,11 +33,9 @@ public class DataStoresService {
     @Autowired
     private DataStoresRepository dataStoresRepository;
 
-    @Autowired
-    private RMQRefinedConfig rmqRefinedConfig;
-
-    private RabbitMQGenericProducer rabbitMQProducer;
-
+//    @Autowired
+//    private RMQRefinedConfig rmqRefinedConfig;
+//
 //    public DataStoresService() {
 //        rabbitMQProducer = new RabbitMQGenericProducer("json");
 //    }
@@ -141,12 +139,6 @@ public class DataStoresService {
         tableDetailsResponse.setDsType(type);
         tableDetailsResponse.setNumberOfColumns((long) columnDetails.size());
         //for testing purpose
-//        try {
-//            rabbitMQProducer = new RabbitMQGenericProducer("json");
-//            rabbitMQProducer.sendMessage("createq", tableDetailsResponse);
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
         return tableDetailsResponse;
     }
 

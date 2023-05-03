@@ -2,17 +2,22 @@ package com.databull.api.service;
 
 import com.databull.api.adaptors.validators.MysqlValidation;
 import com.databull.api.clients.MysqlClient;
+import com.databull.api.config.RMQConfig;
 import com.databull.api.constants.query.RMQConstants;
+import com.databull.api.dto.ColumnDetails;
 import com.databull.api.dto.DataStoreConfig;
-import com.databull.api.config.RMQRefinedConfig;
 import com.databull.api.dto.DestinationDetails;
 import com.databull.api.dto.response.CreatePipelineResponse;
+import com.databull.api.entity.mysql.DpDestinationTableMetadatum;
+import com.databull.api.entity.mysql.DpTablesConfiguration;
 import com.databull.api.entity.rmq.TableDetailPayload;
 import com.databull.api.exception.CustomException;
 import com.databull.api.dto.TableDetails;
 import com.databull.api.dto.requests.TableSyncRequest;
 import com.databull.api.repository.DataStoresRepository;
+import com.databull.api.repository.DestinationTableMetadataRepository;
 import com.databull.api.repository.OrgRepository;
+import com.databull.api.repository.TablesConfigurationRepository;
 import com.databull.api.utils.rest.Pair;
 import com.databull.api.utils.rest.Utils;
 import org.json.JSONObject;
@@ -43,12 +48,14 @@ public class MysqlDataPipelineService implements DataStorePipelineService {
     private OrgRepository orgRepository;
 
     @Autowired
-    private RMQRefinedConfig rmqRefinedConfig;
+    private DestinationTableMetadataRepository destinationTableMetadataRepository;
 
-    private final RabbitMQGenericProducer rabbitMQProducer;
+    @Autowired
+    private TablesConfigurationRepository tablesConfigurationRepository;
+
 
     public MysqlDataPipelineService() throws Exception {
-        rabbitMQProducer = new RabbitMQGenericProducer("json");
+
     }
 
     @Override
@@ -94,9 +101,10 @@ public class MysqlDataPipelineService implements DataStorePipelineService {
                         List<String> exceptionMap = new ArrayList<>();
                         result.forEach(tableDetailPayload -> {
                             try {
-                                rabbitMQProducer.sendMessage(RMQConstants.CREATE_Q, tableDetailPayload);
-                                rabbitMQProducer.sendMessage(RMQConstants.WORKER_Q, tableDetailPayload);
-
+//                                rabbitMQProducer.sendMessage(tableDetailPayload);
+//                                rabbitMQProducer.sendMessage(tableDetailPayload);
+                                Map<Long, String> tableIdMapping = saveTablesConfiguration(tableSyncRequest);
+                                saveDestinationTableMetaData(tableSyncRequest, tableIdMapping);
                             } catch (Exception e) {
                                exceptionMap.add(tableDetailPayload.getTableName());
                             }
@@ -199,73 +207,86 @@ public class MysqlDataPipelineService implements DataStorePipelineService {
 //consumer logic
 //        Map<Long, String> tableIdMapping = saveTablesConfiguration(tableSyncRequest);
 //        saveDestinationTableMetaData(tableSyncRequest, tableIdMapping);
-//    private Map<Long, String> saveTablesConfiguration(TableSyncRequest tableSyncRequest) {
-//        List<TableSyncRequest.TableDetails> tableDetails = tableSyncRequest.getTableDetailsList();
-//        List<DpTablesConfiguration> tablesConfigurations = new ArrayList<>();
-//        for(TableSyncRequest.TableDetails tableDetails1: tableDetails) {
-//            DpTablesConfiguration dpTablesConfiguration = createTablesConfiguration.apply(tableSyncRequest, tableDetails1);
-//            tablesConfigurations.add(dpTablesConfiguration);
-//        }
-//        Iterator<DpTablesConfiguration> itr = tablesConfigurationRepository.saveAll(tablesConfigurations).iterator();
-//        Map<Long, String> tableIdToNameMapping = new HashMap<>();
-//
-//        while(itr.hasNext()) {
-//            DpTablesConfiguration dpTablesConfiguration = itr.next();
-//            tableIdToNameMapping.put(dpTablesConfiguration.getId(), dpTablesConfiguration.getDestinationTableName());
-//        }
-//
-//        return tableIdToNameMapping;
-//    }
-//
-//    private void saveDestinationTableMetaData(TableSyncRequest tableSyncRequest, Map<Long, String> tableIdMapping) {
-//        List<DpDestinationTableMetadatum> dpDestinationTableMetadata = new ArrayList<>();
-//
-//        for(Map.Entry<Long, String> entry : tableIdMapping.entrySet()) {
-//            DpDestinationTableMetadatum dpDestinationTableMetadatum = createDestinationTableMetaData.apply(entry);
-//            dpDestinationTableMetadata.add(dpDestinationTableMetadatum);
-//        }
-//        destinationTableMetadataRepository.saveAll(dpDestinationTableMetadata);
-//    }
-//
-//    BiFunction<TableSyncRequest, TableSyncRequest.TableDetails, DpTablesConfiguration> createTablesConfiguration =
-//            (tableSyncRequest, tableDetails1) -> {
-//                DpTablesConfiguration dpTablesConfiguration = DpTablesConfiguration.builder()
-//                       .withTableName(tableDetails1.getTableName())
-//                       .withDatabaseName(tableSyncRequest.getDatabaseName())
-//                       .withCreatedAt(Instant.now())
-//                       .withUpdatedAt(Instant.now())
-//                       .withDataStoreId(tableSyncRequest.getDataStoreId())
-//                       .withFirstSyncTime(null)
-//                       .withDestinationTableName("dest_" + tableSyncRequest.getDatabaseName())
-//                       .withIncrementingColumn(tableDetails1.getIncrementingColumn())
-//                       .withTimestampColumn(tableDetails1.getTimestampColumn())
-//                       .withPartitioningColumn(tableDetails1.getPartitionColumn())
-//                       .withDatabaseName(tableSyncRequest.getDatabaseName())
-//                       .withIsSinkConnectorCreated(false)
-//                       .withIsSourceConnectorCreated(false)
-//                       .withColumnsWhitelisting(0)
-//                       .build();
-//               return dpTablesConfiguration;
-//            };
-//
-//    Function<Map.Entry<Long, String>, DpDestinationTableMetadatum> createDestinationTableMetaData =
-//            (tableIdMappingEntry) -> {
-//                DpDestinationTableMetadatum dpDestinationTableMetadatum = DpDestinationTableMetadatum.builder()
-//                        .withDestinationTableName(tableIdMappingEntry.getValue())
-//                        .withTableId(tableIdMappingEntry.getKey())
-//                        .withCreatedAt(Instant.now())
-//                        .withUpdatedAt(Instant.now())
-//                        .withIsActive(false)
-//                        .withS3BucketName("MYSQL-DEFAULT")
-//                        .withSparkConf(new HashMap<>())
-//                        .withLastMergeIncrement(null)
-//                        .withS3PathSchema("s3://")
-//                        .withS3PathTopic("s3://")
-//                        .withUpdateFrequency(12)
-//                        .build();
-//
-//                return dpDestinationTableMetadatum;
-//            };
+    private Map<Long, String> saveTablesConfiguration(TableSyncRequest tableSyncRequest) {
+        List<TableDetails> tableDetails = tableSyncRequest.getTableDetailsList();
+        List<DpTablesConfiguration> tablesConfigurations = new ArrayList<>();
+        for(TableDetails tableDetails1: tableDetails) {
+            DpTablesConfiguration dpTablesConfiguration = createTablesConfiguration.apply(tableSyncRequest, tableDetails1);
+            tablesConfigurations.add(dpTablesConfiguration);
+        }
+        Iterator<DpTablesConfiguration> itr = tablesConfigurationRepository.saveAll(tablesConfigurations).iterator();
+        Map<Long, String> tableIdToNameMapping = new HashMap<>();
+
+        while(itr.hasNext()) {
+            DpTablesConfiguration dpTablesConfiguration = itr.next();
+            tableIdToNameMapping.put(dpTablesConfiguration.getId(), dpTablesConfiguration.getDestinationTableName());
+        }
+
+        return tableIdToNameMapping;
+    }
+
+    private void saveDestinationTableMetaData(TableSyncRequest tableSyncRequest, Map<Long, String> tableIdMapping) {
+        List<DpDestinationTableMetadatum> dpDestinationTableMetadata = new ArrayList<>();
+
+        for(Map.Entry<Long, String> entry : tableIdMapping.entrySet()) {
+            DpDestinationTableMetadatum dpDestinationTableMetadatum = createDestinationTableMetaData.apply(entry);
+            dpDestinationTableMetadata.add(dpDestinationTableMetadatum);
+        }
+        destinationTableMetadataRepository.saveAll(dpDestinationTableMetadata);
+    }
+
+    BiFunction<TableSyncRequest, TableDetails, DpTablesConfiguration> createTablesConfiguration =
+            (tableSyncRequest, tableDetails1) -> {
+                List<ColumnDetails> columnDetails = tableDetails1.getColumnDetailsList();
+                String incrementingColumn = null;
+                String timestampColumn = null;
+                String partitionColumn = null;
+                for(ColumnDetails columnDetails1 : columnDetails) {
+                    if(columnDetails1.getIsIncrementingColumn())
+                        incrementingColumn = columnDetails1.getColumnName();
+                    if(columnDetails1.getIsTimestampColumn())
+                        timestampColumn = columnDetails1.getColumnName();
+                    if(columnDetails1.getIsPartitionColumn())
+                        partitionColumn = columnDetails1.getColumnName()
+                }
+
+                DpTablesConfiguration dpTablesConfiguration = DpTablesConfiguration.builder()
+                       .withTableName(tableDetails1.getTableName())
+                       .withDatabaseName(tableSyncRequest.getDatabaseName())
+                       .withCreatedAt(Instant.now())
+                       .withUpdatedAt(Instant.now())
+                       .withDataStoreId(tableSyncRequest.getDsId())
+                       .withFirstSyncTime(null)
+                       .withDestinationTableName("dest_" + tableSyncRequest.getDatabaseName())
+                       .withIncrementingColumn(incrementingColumn)
+                       .withTimestampColumn(timestampColumn)
+                       .withPartitioningColumn(partitionColumn)
+                       .withDatabaseName(tableSyncRequest.getDatabaseName())
+                       .withIsSinkConnectorCreated(false)
+                       .withIsSourceConnectorCreated(false)
+                       .withColumnsWhitelisting(0)
+                       .build();
+               return dpTablesConfiguration;
+            };
+
+    Function<Map.Entry<Long, String>, DpDestinationTableMetadatum> createDestinationTableMetaData =
+            (tableIdMappingEntry) -> {
+                DpDestinationTableMetadatum dpDestinationTableMetadatum = DpDestinationTableMetadatum.builder()
+                        .withDestinationTableName(tableIdMappingEntry.getValue())
+                        .withTableId(tableIdMappingEntry.getKey())
+                        .withCreatedAt(Instant.now())
+                        .withUpdatedAt(Instant.now())
+                        .withIsActive(false)
+                        .withS3BucketName("MYSQL-DEFAULT")
+                        .withSparkConf(new HashMap<>())
+                        .withLastMergeIncrement(null)
+                        .withS3PathSchema("s3://")
+                        .withS3PathTopic("s3://")
+                        .withUpdateFrequency(12)
+                        .build();
+
+                return dpDestinationTableMetadatum;
+            };
 
     public static MysqlDataPipelineService getInstance() throws Exception {
         return new MysqlDataPipelineService();
