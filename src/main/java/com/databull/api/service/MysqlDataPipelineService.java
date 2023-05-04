@@ -1,212 +1,64 @@
 package com.databull.api.service;
 
-import com.databull.api.adaptors.validators.MysqlValidation;
-import com.databull.api.clients.MysqlClient;
-import com.databull.api.config.RMQConfig;
-import com.databull.api.constants.query.RMQConstants;
 import com.databull.api.dto.ColumnDetails;
 import com.databull.api.dto.DataStoreConfig;
-import com.databull.api.dto.DestinationDetails;
+import com.databull.api.dto.TableDetails;
+import com.databull.api.dto.requests.TableSyncRequest;
 import com.databull.api.dto.response.CreatePipelineResponse;
 import com.databull.api.entity.mysql.DpDestinationTableMetadatum;
 import com.databull.api.entity.mysql.DpTablesConfiguration;
-import com.databull.api.entity.rmq.TableDetailPayload;
-import com.databull.api.exception.CustomException;
-import com.databull.api.dto.TableDetails;
-import com.databull.api.dto.requests.TableSyncRequest;
-import com.databull.api.repository.DataStoresRepository;
 import com.databull.api.repository.DestinationTableMetadataRepository;
-import com.databull.api.repository.OrgRepository;
 import com.databull.api.repository.TablesConfigurationRepository;
-import com.databull.api.utils.rest.Pair;
-import com.databull.api.utils.rest.Utils;
-import org.json.JSONObject;
+import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 //datastore to datastore -- move to s3 then spark job
 //datastore to warehouse -- s3
 //datastore to data lake -- s3
 
+@Service
+@Transactional
 public class MysqlDataPipelineService implements DataStorePipelineService {
 
     private static final Logger log = LoggerFactory.getLogger(MysqlDataPipelineService.class);
 
     @Autowired
-    private DataStoresRepository dataStoresRepository;
+    TablesConfigurationRepository tablesConfigurationRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
-
-    @Autowired
-    private DestinationTableMetadataRepository destinationTableMetadataRepository;
-
-    @Autowired
-    private TablesConfigurationRepository tablesConfigurationRepository;
-
-
-    public MysqlDataPipelineService() throws Exception {
-
-    }
+    DestinationTableMetadataRepository destinationTableMetadataRepository;
 
     @Override
-    public Boolean checkStatusTableSourceConnector(String dataStoreType, Integer tableId) {
-        return null;
-    }
-
-    @Override
-    public CreatePipelineResponse createMultiTablePipeline(TableSyncRequest tableSyncRequest, DataStoreConfig dataStoreConfig) throws Exception {
-        //create table entry
-        //launch connectors with source
-        //push in queue according to destination
-        //consumer logic
-        //push in rmq
-        //create connector source and sink
-        //update if data landed on s3
-        //create message
-        if(Objects.isNull(tableSyncRequest))
-            throw new IllegalArgumentException("TableSyncRequest is Empty. Please check");
-        if(Objects.isNull(tableSyncRequest.getTableDetailsList()) || tableSyncRequest.getTableDetailsList().isEmpty())
-            throw new IllegalArgumentException("Table details can't be empty");
-
-        MysqlClient mysqlClient = new MysqlClient(dataStoreConfig);
-        MysqlValidation.validateMysqlTableRequest(tableSyncRequest, mysqlClient);
-        List<TableDetails> tableDetails = tableSyncRequest.getTableDetailsList();
-
-        //equivalent to async await .join() is await method so Completablefuture.supplyasync is giving the
-        //async functionality to executor threads we are writing async code in synchronous way
-
-        List<String> results = CompletableFuture.supplyAsync(() -> {
-                        try {
-                            List<TableDetailPayload> tableDetailPayloadsList =
-                                    createTableDetailPayload(tableDetails, tableSyncRequest, dataStoreConfig);
-                            return tableDetailPayloadsList;
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
+    public CreatePipelineResponse createMultiTablePipeline(TableSyncRequest tableSyncRequest, DataStoreConfig dataStoreConfig)  {
+        return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        Map<Long, String> mp = saveTablesConfiguration(tableSyncRequest);
+                        saveDestinationTableMetaData(tableSyncRequest, mp);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    return "Processed";
                 }).handle((result, exp) -> {
-                        if(exp != null) {
-                            log.error("Error while creating table payload for mq push");
-                            return null;
-                        }
-                        List<String> exceptionMap = new ArrayList<>();
-                        result.forEach(tableDetailPayload -> {
-                            try {
-//                                rabbitMQProducer.sendMessage(tableDetailPayload);
-//                                rabbitMQProducer.sendMessage(tableDetailPayload);
-                                Map<Long, String> tableIdMapping = saveTablesConfiguration(tableSyncRequest);
-                                saveDestinationTableMetaData(tableSyncRequest, tableIdMapping);
-                            } catch (Exception e) {
-                               exceptionMap.add(tableDetailPayload.getTableName());
-                            }
-            });
-           return exceptionMap;
-        }).join();
-
-        if(Objects.isNull(results)) {
-            throw new CustomException(new CustomException.ErrorMessage("Error while processing the payload",
-                    500));
-        }
-
-        CreatePipelineResponse createPipelineResponse = new CreatePipelineResponse();
-        createPipelineResponse.setMessage("Pipeline creation in process");
-        createPipelineResponse.setFailedTableNameList(results);
-        List<String> alltables = tableDetails.stream().map(TableDetails::getTableName).collect(Collectors.toList());
-        alltables.removeAll(results);
-        createPipelineResponse.setAcceptedTableNamesList(alltables);
-        return createPipelineResponse;
+                CreatePipelineResponse createPipelineResponse1 = new CreatePipelineResponse();
+                    if(exp!=null) {
+                        log.error("Error while creating the metadata entry:" + exp.getMessage() );
+                        createPipelineResponse1.setMessage("Error while processing the table request");
+                    }
+                    else if(result.equals("Processed"))
+                        createPipelineResponse1.setMessage("Processed the request, Added the entry.");
+                    return createPipelineResponse1;
+                }).join();
     }
 
-    private Function<Long, String> getOrgName = (orgId) -> orgRepository.findOrgNameById(orgId);
-
-    private BiFunction<TableDetails, DestinationDetails, JSONObject> createSinkConnector = (tableDetail, destinationDetails) -> {
-        try {
-            Pair<String, Boolean> warehouseCheck = destinationDetails.getDataWareHouseTypeAndCheck();
-            Pair<String, Boolean> dataStoreCheck = destinationDetails.getDataStoreTypeAndCheck();
-
-            if(warehouseCheck.getSecond()) {
-                //getConnector config
-                //sink connector of s3
-                JSONObject s3SinkConnector = Utils.getConnectorConfig("s3", "sink");
-                s3SinkConnector.getJSONObject("config")
-                        .put("s3.bucket.name", "mysql-default")
-                        .put("topics", tableDetail.getTableName())
-                        .put("name", "sink-s3-" + tableDetail.getTableName() + "-connector");
-
-                s3SinkConnector.getJSONObject("name")
-                        .put("name", "sink-s3-" + tableDetail.getTableName() + "-connector");
-                return s3SinkConnector;
-            }
-
-            //Todo: implement s3 sink for Datastores
-            else if (dataStoreCheck.getSecond()) {
-                if(dataStoreCheck.getFirst().equals("mysql")) {
-
-                } else if(dataStoreCheck.getFirst().equals("postgres")) {
-
-                }
-            }
-
-        } catch (Exception e) {
-            throw new CustomException(new CustomException.ErrorMessage("Error while processing connectors.",
-                    500));
-        }
-        return null;
-    };
-
-//redo
-    private BiFunction<TableSyncRequest, DataStoreConfig, JSONObject> createSourceConnector = (tableSyncRequest, dataStoreConfig) -> {
-        JSONObject sourceConnector = null;
-        try {
-            sourceConnector = Utils.getConnectorConfig("s3", "sink");
-            sourceConnector.getJSONObject("config")
-                    .put("database.name", dataStoreConfig.getEndpoint())
-                    .put("database.port", dataStoreConfig.getPort())
-                    .put("database.user", dataStoreConfig.getUsername())
-                    .put("database.include.list", tableSyncRequest.getDatabaseName())
-                    .put("table.include.list", tableSyncRequest.getTableDetailsList().stream().map(TableDetails::getTableName));
-            return sourceConnector;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        //Todo: kafka config for bootstrap server
-        //                .put("");
-    };
-
-
-    private List<TableDetailPayload> createTableDetailPayload(List<TableDetails> tableDetails, TableSyncRequest tableSyncRequest, DataStoreConfig dataStoreConfig) throws IOException {
-        List<TableDetailPayload> tableDetailPayloads = tableDetails.stream().map(tabledetail -> {
-                TableDetailPayload tableDetailPayload = TableDetailPayload.builder()
-                        .tableName(tabledetail.getTableName())
-                        .dsId(tableSyncRequest.getDsId())
-                        .databaseName(tabledetail.getDatabaseName())
-                        .orgName(getOrgName.apply(tableSyncRequest.getOrgId()))
-                        .uuid(UUID.randomUUID())
-                        .columnDetailsList(tabledetail.getColumnDetailsList())
-                        .timestamp(Instant.now())
-                        .sinkConnector(createSinkConnector.apply(tabledetail, tableSyncRequest.getDestinationDetails()))
-                        .sourceConnector(createSourceConnector.apply(tableSyncRequest, dataStoreConfig))
-                        .destinationDetails(tableSyncRequest.getDestinationDetails())
-                        .build();
-                return tableDetailPayload;
-            }).collect(Collectors.toList());
-            return tableDetailPayloads;
-    }
-
-
-
-//consumer logic
-//        Map<Long, String> tableIdMapping = saveTablesConfiguration(tableSyncRequest);
-//        saveDestinationTableMetaData(tableSyncRequest, tableIdMapping);
     private Map<Long, String> saveTablesConfiguration(TableSyncRequest tableSyncRequest) {
         List<TableDetails> tableDetails = tableSyncRequest.getTableDetailsList();
         List<DpTablesConfiguration> tablesConfigurations = new ArrayList<>();
@@ -242,31 +94,31 @@ public class MysqlDataPipelineService implements DataStorePipelineService {
                 String timestampColumn = null;
                 String partitionColumn = null;
                 for(ColumnDetails columnDetails1 : columnDetails) {
-                    if(columnDetails1.getIsIncrementingColumn())
+                    if(!Objects.isNull(columnDetails1.getIsIncrementingColumn()) && columnDetails1.getIsIncrementingColumn())
                         incrementingColumn = columnDetails1.getColumnName();
-                    if(columnDetails1.getIsTimestampColumn())
+                    if(!Objects.isNull(columnDetails1.getIsTimestampColumn()) && columnDetails1.getIsTimestampColumn())
                         timestampColumn = columnDetails1.getColumnName();
-                    if(columnDetails1.getIsPartitionColumn())
-                        partitionColumn = columnDetails1.getColumnName()
+                    if(!Objects.isNull(columnDetails1.getIsPartitionColumn()) && columnDetails1.getIsPartitionColumn())
+                        partitionColumn = columnDetails1.getColumnName();
                 }
 
                 DpTablesConfiguration dpTablesConfiguration = DpTablesConfiguration.builder()
-                       .withTableName(tableDetails1.getTableName())
-                       .withDatabaseName(tableSyncRequest.getDatabaseName())
-                       .withCreatedAt(Instant.now())
-                       .withUpdatedAt(Instant.now())
-                       .withDataStoreId(tableSyncRequest.getDsId())
-                       .withFirstSyncTime(null)
-                       .withDestinationTableName("dest_" + tableSyncRequest.getDatabaseName())
-                       .withIncrementingColumn(incrementingColumn)
-                       .withTimestampColumn(timestampColumn)
-                       .withPartitioningColumn(partitionColumn)
-                       .withDatabaseName(tableSyncRequest.getDatabaseName())
-                       .withIsSinkConnectorCreated(false)
-                       .withIsSourceConnectorCreated(false)
-                       .withColumnsWhitelisting(0)
-                       .build();
-               return dpTablesConfiguration;
+                        .withTableName(tableDetails1.getTableName())
+                        .withDatabaseName(tableSyncRequest.getDatabaseName())
+                        .withCreatedAt(Instant.now())
+                        .withUpdatedAt(Instant.now())
+                        .withDataStoreId(tableSyncRequest.getDsId())
+                        .withFirstSyncTime(null)
+                        .withDestinationTableName("dest_" + tableDetails1.getTableName())
+                        .withIncrementingColumn(incrementingColumn)
+                        .withTimestampColumn(timestampColumn)
+                        .withPartitioningColumn(partitionColumn)
+                        .withDatabaseName(tableSyncRequest.getDatabaseName())
+                        .withIsSinkConnectorCreated(false)
+                        .withIsSourceConnectorCreated(false)
+                        .withColumnsWhitelisting(0)
+                        .build();
+                return dpTablesConfiguration;
             };
 
     Function<Map.Entry<Long, String>, DpDestinationTableMetadatum> createDestinationTableMetaData =
@@ -288,8 +140,10 @@ public class MysqlDataPipelineService implements DataStorePipelineService {
                 return dpDestinationTableMetadatum;
             };
 
-    public static MysqlDataPipelineService getInstance() throws Exception {
-        return new MysqlDataPipelineService();
+
+    @Override
+    public Boolean checkStatusTableSourceConnector(String dataStoreType, Integer tableId) {
+        return null;
     }
 
 }

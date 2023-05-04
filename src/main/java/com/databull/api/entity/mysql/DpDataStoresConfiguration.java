@@ -50,8 +50,11 @@ public class DpDataStoresConfiguration {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
-    @Column(name = "is_warehouse")
-    private Boolean isWarehouse;
+    @Column(name = "can_be_warehouse_destination")
+    private Boolean canBeWarehouseForDestination;
+
+    @Column(name = "can_be_datastore_destination")
+    private Boolean canBeDataStoreForDestination;
 
     @Column(name = "datastore_type")
     private String type;

@@ -6,9 +6,8 @@ import com.databull.api.dto.response.CreatePipelineResponse;
 import com.databull.api.dto.response.DataBaseDetailsResponse;
 import com.databull.api.dto.response.DataStoreDetailsResponse;
 import com.databull.api.dto.response.TableDetailsResponse;
-import com.databull.api.service.DataStorePipelineService;
-import com.databull.api.service.DataStorePipelineServiceManager;
-import com.databull.api.service.DataStoresService;
+import com.databull.api.repository.DataStoresRepository;
+import com.databull.api.service.*;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 public class SourceController {
@@ -26,7 +26,10 @@ public class SourceController {
     DataStoresService dataStoresService;
 
     @Autowired
-    DataStorePipelineServiceManager dataStorePipelineServiceManager;
+    private DataStoresRepository dataStoresRepository;
+
+    @Autowired
+    DataPipelineServiceManager dataPipelineServiceManager;
 
     @GetMapping(value = "/sources/{type}", produces = "application/json")
     public ResponseEntity<List<DataStoreConfig>> getAllSourcesByType (@PathVariable String type) {
@@ -100,10 +103,9 @@ public class SourceController {
             boolean dataStorePresent = dataStoresService.checkDataStorePresentById(tableSyncRequest.getDsId());
             if(!dataStorePresent) throw new Exception("DataStore not present");
             DataStoreConfig dataStoreConfig = dataStoresService.getDataStoreConfig(tableSyncRequest.getDsId());
-            DataStorePipelineService dataStorePipelineService =
-                    dataStorePipelineServiceManager.routeToService(tableSyncRequest.getDsType());
-            CreatePipelineResponse pipelineResponse = dataStorePipelineService
-                    .createMultiTablePipeline(tableSyncRequest, dataStoreConfig);
+            CreatePipelineResponse pipelineResponse = null;
+            DataStorePipelineService dataStorePipelineService = dataPipelineServiceManager.routeToService(tableSyncRequest.getDsType());
+            pipelineResponse = dataStorePipelineService.createMultiTablePipeline(tableSyncRequest, dataStoreConfig);
             return new ResponseEntity<>(pipelineResponse, HttpStatus.ACCEPTED);
         } catch (Exception e) {
             log.error("Error while processing the request:" + e.getMessage());

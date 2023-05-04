@@ -1,9 +1,11 @@
 package com.databull.api.dto;
 
 import com.databull.api.utils.rest.Pair;
+import lombok.Builder;
 import lombok.Data;
 
 @Data
+@Builder
 public class DestinationDetails {
 
     private String username;
@@ -11,11 +13,11 @@ public class DestinationDetails {
     private Integer port;
     private String endpoint;
     private String databaseName;
-    private String orgId;
-    private String orgName;
 
-    private Pair<String, Boolean> dataStoreTypeAndCheck;
-    private Pair<String, Boolean> dataWareHouseTypeAndCheck;
+    private Long dstId;
+
+    private Boolean isDestinationWarehouse;
+    private Boolean isDestinationDataStore;
 
 }
 

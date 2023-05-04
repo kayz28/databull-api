@@ -7,6 +7,4 @@ import java.util.List;
 @Data
 public class CreatePipelineResponse {
     String message;
-    List<String> failedTableNameList;
-    List<String> acceptedTableNamesList;
 }
