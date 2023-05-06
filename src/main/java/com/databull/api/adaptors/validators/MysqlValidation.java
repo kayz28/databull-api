@@ -25,7 +25,7 @@ public class MysqlValidation {
 
     }
 
-    public static void validateMysqlTableRequest(TableSyncRequest tableSyncRequest,
+    public void validateMysqlTableRequest(TableSyncRequest tableSyncRequest,
                                                  MysqlClient mysqlClient)
             throws Exception {
         if(!mysqlClient.checkConnection())

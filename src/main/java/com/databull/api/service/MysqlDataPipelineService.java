@@ -1,5 +1,7 @@
 package com.databull.api.service;
 
+import com.databull.api.adaptors.validators.MysqlValidation;
+import com.databull.api.clients.MysqlClient;
 import com.databull.api.dto.ColumnDetails;
 import com.databull.api.dto.DataStoreConfig;
 import com.databull.api.dto.TableDetails;
@@ -38,8 +40,13 @@ public class MysqlDataPipelineService implements DataStorePipelineService {
     DestinationTableMetadataRepository destinationTableMetadataRepository;
 
     @Override
-    public CreatePipelineResponse createMultiTablePipeline(TableSyncRequest tableSyncRequest, DataStoreConfig dataStoreConfig)  {
-        return CompletableFuture.supplyAsync(() -> {
+    public CreatePipelineResponse createMultiTablePipeline(TableSyncRequest tableSyncRequest, DataStoreConfig dataStoreConfig) throws Exception {
+        MysqlValidation mysqlValidation = new MysqlValidation();
+
+        MysqlClient mysqlClient = new MysqlClient(dataStoreConfig);
+        mysqlValidation.validateMysqlTableRequest(tableSyncRequest, mysqlClient);
+
+        CreatePipelineResponse createPipelineResponse =  CompletableFuture.supplyAsync(() -> {
                     try {
                         Map<Long, String> mp = saveTablesConfiguration(tableSyncRequest);
                         saveDestinationTableMetaData(tableSyncRequest, mp);
@@ -52,11 +59,19 @@ public class MysqlDataPipelineService implements DataStorePipelineService {
                     if(exp!=null) {
                         log.error("Error while creating the metadata entry:" + exp.getMessage() );
                         createPipelineResponse1.setMessage("Error while processing the table request");
+                        createPipelineResponse1.setStatusCode(500);
                     }
                     else if(result.equals("Processed"))
                         createPipelineResponse1.setMessage("Processed the request, Added the entry.");
+                        createPipelineResponse1.setStatusCode(200);
                     return createPipelineResponse1;
                 }).join();
+
+//        if(createPipelineResponse.getStatusCode().equals(500))
+//            throw new CustomException(new CustomException.ErrorMessage("Error while processing the request",
+//                    500));
+
+        return createPipelineResponse;
     }
 
     private Map<Long, String> saveTablesConfiguration(TableSyncRequest tableSyncRequest) {

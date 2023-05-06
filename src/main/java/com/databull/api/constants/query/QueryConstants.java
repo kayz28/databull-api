@@ -11,9 +11,9 @@ public class QueryConstants {
     public static final String MYSQL_DATABASE_QUERY = "SELECT schema_name FROM information_schema.schemata";
 
     //Postgres queries
-    public static final String POSTGRES_DATABASE_DETAILS = "";
-    public static final String POSTGRES_TABLE_DETAILS = "";
-    public static final String POSTGRES_COLUMN_DETAILS = "";
+    public static final String POSTGRES_DATABASE_DETAILS = "SELECT datname FROM pg_database";
+    public static final String POSTGRES_TABLE_DETAILS = "select * from information_schema.tables where table_schema = ?"; //public schema name
+    public static final String POSTGRES_COLUMN_DETAILS = "select * from information_schema.columns where table_schema = ? and table_name = ?"; // public and tablename
     public static final String POSTGRES_PING_QUERY = "Select 1";
     public static final String POSTGRES_WAL_ENABLE_QUERY = " ";
 

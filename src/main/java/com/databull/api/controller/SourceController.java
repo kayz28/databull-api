@@ -109,7 +109,10 @@ public class SourceController {
             return new ResponseEntity<>(pipelineResponse, HttpStatus.ACCEPTED);
         } catch (Exception e) {
             log.error("Error while processing the request:" + e.getMessage());
-            return new ResponseEntity<>(new CreatePipelineResponse(), HttpStatus.BAD_REQUEST);
+            CreatePipelineResponse createPipelineResponse = new CreatePipelineResponse();
+            createPipelineResponse.setMessage(e.getMessage());
+            createPipelineResponse.setStatusCode(400);
+            return new ResponseEntity<>(createPipelineResponse, HttpStatus.BAD_REQUEST);
         }
     }
 

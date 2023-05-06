@@ -16,11 +16,15 @@ public class CustomException extends RuntimeException {
         super(errorMessage.toString());
     }
 
+    public ErrorMessage getErrorMessage() {
+        return errorMessage;
+    }
+
     public static class ErrorMessage {
         String message;
-        Long statusCode;
+        Integer statusCode;
 
-        public ErrorMessage(String message, long statusCode) {
+        public ErrorMessage(String message, int statusCode) {
             this.statusCode = statusCode;
             this.message = message;
         }

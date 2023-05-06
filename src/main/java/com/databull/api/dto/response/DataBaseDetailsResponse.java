@@ -1,5 +1,6 @@
 package com.databull.api.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 
 import java.util.List;
@@ -12,6 +13,7 @@ public class DataBaseDetailsResponse {
     Long dsId;
 
     @Data
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class TableDetails {
         String tableName;
         String tableComment;

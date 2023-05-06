@@ -24,10 +24,13 @@ public class MysqlClient extends DataStoreBase implements DataStoreClient {
         try {
             Statement stmt = this.connect().createStatement();
             ResultSet rst = stmt.executeQuery(QueryConstants.MYSQL_PING_QUERY);
-            return true;
+            if(rst.next()) {
+                return true;
+            }
         } catch (SQLException e) {
             throw new SQLException(e);
         }
+        return false;
     }
 
     public Boolean checkBinLogEnabled() throws SQLException {
@@ -102,7 +105,7 @@ public class MysqlClient extends DataStoreBase implements DataStoreClient {
             PreparedStatement stmt = this.connect().prepareStatement(QueryConstants.MYSQL_DATABASE_CHECK_QUERY);
             stmt.setString(1, databaseName);
             ResultSet rst = stmt.executeQuery();
-            if(rst.first()) return true;
+            if(rst.next()) return true;
         } catch (Exception e) {
             throw new Exception(e.getMessage());
         }
@@ -118,7 +121,8 @@ public class MysqlClient extends DataStoreBase implements DataStoreClient {
             while (rst.next()) {
                 lis.add(rst.getString("TABLE_NAME"));
             }
-            if(lis.contains(tableNamesList)) return true;
+
+            if(lis.contains(tableNamesList.get(0))) return true;
         } catch (SQLException exp) {
             throw new Exception(exp.getMessage());
         }
