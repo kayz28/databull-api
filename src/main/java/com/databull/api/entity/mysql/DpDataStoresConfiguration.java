@@ -29,6 +29,9 @@ public class DpDataStoresConfiguration {
     @Column(name = "port", nullable = false)
     private Integer port;
 
+    @Column(name = "database_name", nullable = false)
+    private String databaseName;
+
     @Column(name = "setup_done")
     private Boolean setupDone;
 

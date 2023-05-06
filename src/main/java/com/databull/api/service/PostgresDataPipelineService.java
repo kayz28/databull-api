@@ -3,6 +3,7 @@ package com.databull.api.service;
 import com.databull.api.dto.DataStoreConfig;
 import com.databull.api.dto.requests.TableSyncRequest;
 import com.databull.api.dto.response.CreatePipelineResponse;
+import com.databull.api.exception.CustomException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,7 @@ public class PostgresDataPipelineService implements DataStorePipelineService {
 
 
     @Override
-    public CreatePipelineResponse createMultiTablePipeline(TableSyncRequest tableSyncRequest, DataStoreConfig dataStoreConfig) throws Exception {
+    public CreatePipelineResponse createMultiTablePipeline(TableSyncRequest tableSyncRequest, DataStoreConfig dataStoreConfig) throws CustomException {
         return null;
     }
 

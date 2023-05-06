@@ -59,6 +59,7 @@ public class DataStoresService {
                     dataStoreConfig.setPort(dpDataStoresConfigurations.getPort());
                     dataStoreConfig.setPassword(dpDataStoresConfigurations.getPassword());
                     dataStoreConfig.setUsername(dpDataStoresConfigurations.getUsername());
+                    dataStoreConfig.setDatabaseName(dpDataStoresConfigurations.getDatabaseName());
 
                 }
         );
@@ -72,6 +73,7 @@ public class DataStoresService {
         dataStoreConfig.setPort(dpDataStoresConfiguration1.getPort());
         dataStoreConfig.setPassword(dpDataStoresConfiguration1.getPassword());
         dataStoreConfig.setUsername(dpDataStoresConfiguration1.getUsername());
+        dataStoreConfig.setDatabaseName(dpDataStoresConfiguration1.getDatabaseName());
         return dataStoreConfig;
     }
 
@@ -84,6 +86,7 @@ public class DataStoresService {
             dataStoreConfig.setPort(dpDataStoresConfiguration.getPort());
             dataStoreConfig.setPassword(dpDataStoresConfiguration.getPassword());
             dataStoreConfig.setUsername(dpDataStoresConfiguration.getUsername());
+            dataStoreConfig.setDatabaseName(dataStoreConfig.getDatabaseName());
             dataStoreConfigs.add(dataStoreConfig);
         }
         return dataStoreConfigs;

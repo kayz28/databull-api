@@ -21,8 +21,8 @@ public class CustomException extends RuntimeException {
     }
 
     public static class ErrorMessage {
-        String message;
-        Integer statusCode;
+        public String message;
+        public Integer statusCode;
 
         public ErrorMessage(String message, int statusCode) {
             this.statusCode = statusCode;

@@ -13,5 +13,7 @@ public class DataStoreConfig {
 
     Integer port;
 
+    String databaseName;
+
 
 }

@@ -26,10 +26,12 @@ public class PostgresClient extends DataStoreBase implements DataStoreClient{
         try {
             Statement stmt = this.connect().createStatement();
             ResultSet rst = stmt.executeQuery(QueryConstants.POSTGRES_PING_QUERY);
-            return true;
+            if(rst.next())
+                return true;
         } catch (SQLException e) {
             throw new SQLException(e);
         }
+        return false;
     }
 
     @Override
@@ -61,11 +63,12 @@ public class PostgresClient extends DataStoreBase implements DataStoreClient{
     }
 
     @Async
-    public List<DataBaseDetailsResponse.TableDetails> getTablesList(String database) throws SQLException {
+    public List<DataBaseDetailsResponse.TableDetails>  getTablesList(String database) throws SQLException {
         List<DataBaseDetailsResponse.TableDetails> tableList = new ArrayList<>();
         try {
             PreparedStatement stmt = this.connect().prepareStatement(QueryConstants.POSTGRES_TABLE_DETAILS);
             stmt.setString(1, database);
+            System.out.println(stmt);
             ResultSet rst = stmt.executeQuery();
             while(rst.next()) {
                 DataBaseDetailsResponse.TableDetails  tableDetails = new DataBaseDetailsResponse.TableDetails();

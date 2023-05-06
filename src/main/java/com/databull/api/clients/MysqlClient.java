@@ -17,8 +17,6 @@ public class MysqlClient extends DataStoreBase implements DataStoreClient {
         super(dataStoreConfig, MYSQL_DATABASE_DRIVER, "mysql");
     }
 
-
-
     @Override
     public Boolean checkConnection() throws SQLException {
         try {

@@ -17,6 +17,7 @@ public class DataStoreBase {
     private Connection connection;
     private final String DATABASE_DRIVER;
     private Properties props;
+    private String databaseName;
 
 
     public DataStoreBase(DataStoreConfig dataStoreConfig, String DATABASE_DRIVER, String type) {
@@ -25,6 +26,7 @@ public class DataStoreBase {
         this.port = dataStoreConfig.getPort();
         this.DATABASE_DRIVER = DATABASE_DRIVER;
         this.type = type;
+        this.databaseName = dataStoreConfig.getDatabaseName();
         props = new Properties();
         props.put("user", dataStoreConfig.getUsername());
         props.put("password", dataStoreConfig.getPassword());
@@ -46,13 +48,13 @@ public class DataStoreBase {
     private String constructDbUrl() {
         switch (type) {
             case "mysql" -> {
-                return "jdbc:mysql://" + endpoint + ":" + port;
+                return "jdbc:mysql://" + endpoint + ":" + port + "/" ;
             }
             case "postgres" -> {
-                return "jdbc:postgresql://" + endpoint + ":" + port;
+                return "jdbc:postgresql://" + endpoint + ":" + port + "/" + this.databaseName;
             }
             case "mongodb" -> {
-                return "jdbc:mongo://" + endpoint + ":" + port;
+                return "jdbc:mongo://" + endpoint + ":" + port + "/";
             }
         }
         return null;

@@ -9,6 +9,7 @@ import com.databull.api.dto.requests.TableSyncRequest;
 import com.databull.api.dto.response.CreatePipelineResponse;
 import com.databull.api.entity.mysql.DpDestinationTableMetadatum;
 import com.databull.api.entity.mysql.DpTablesConfiguration;
+import com.databull.api.exception.CustomException;
 import com.databull.api.repository.DestinationTableMetadataRepository;
 import com.databull.api.repository.TablesConfigurationRepository;
 import jakarta.transaction.Transactional;
